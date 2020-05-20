@@ -33,7 +33,7 @@ class TransE(nn.Module):
 
     def get_score(self, h, r, t):
         score = h + r - t
-        score = torch.norm(score, 2, -1).flatten()
+        score = torch.norm(score, 2, -1).flatten()  # .unsqueeze(-1)    #  .flatten()直接压成一维
         # torch.norm 对Tensor求范式 torch.norm(input, p=2) → float 对倒数第一维 的第p_norm范式 transE中p_norm为L1范式
         # 计算完范式之后，-1维没了，变成[[batch_seq]] (1,batch_seq)
         # flatten() 变成一维张量 默认按 最后一维，顺序   [batch_seq]
@@ -56,8 +56,16 @@ class MarginLoss(nn.Module):
         self.margin.requires_grad = False
 
     # 损失函数的输入
-    def forward(self, p_score, n_score):
-        return (torch.max(p_score - n_score, -self.margin)).mean() + self.margin
+    def forward(self, p_score, n_score, batch_size):
+        #
+        # n_score=n_score.reshape([n_score.shape[0]//25,25])
+        # p_score=p_score.unsqueeze(dim=-1)
+        # res=p_score - n_score
+
+        p_score = p_score.view(-1, batch_size).permute(1, 0)
+        n_score = n_score.view(-1, batch_size).permute(1, 0)
+        # 返回25个负例，与正例里面的最远
+        return (torch.max(p_score-n_score, -self.margin)).mean() + self.margin # 0不好写，改成这种写法
         # 写的非常秒啊兄弟，不愧是清华大佬写的 秒啊，兄弟;  判断都不用了  ().mean()返回的是标量
         # torch.max(p_score - n_score, -self.margin) 将比-margin小的（正例和负例差要比margin远的），全部替换成-margin (是正确向量描述规则)
         # mean对所元素取算数平均值；

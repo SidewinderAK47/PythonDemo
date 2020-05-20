@@ -88,18 +88,19 @@ class KnowledgeGraph:
                 batch_neg = []
                 # 二项分布，伯努利采样；n =1 为采样次数，p=0.5 概率为0.5
                 corrupt_head_prob = np.random.binomial(1, 0.5)
-                for head, tail, relation in batch_pos:
-                    head_neg = head
-                    tail_neg = tail
-                    while True:
-                        if corrupt_head_prob:
-                            head_neg = random.choice(self.entities)
-                        else:
-                            tail_neg = random.choice(self.entities)
-                        if (head_neg, tail_neg, relation) not in self.training_triple_pool:
-                            break
-                    # 加入负例列表
-                    batch_neg.append((head_neg, tail_neg, relation))
+                for _ in range(25):
+                    for head, tail, relation in batch_pos:
+                        head_neg = head
+                        tail_neg = tail
+                        while True:
+                            if corrupt_head_prob:
+                                head_neg = random.choice(self.entities)
+                            else:
+                                tail_neg = random.choice(self.entities)
+                            if (head_neg, tail_neg, relation) not in self.training_triple_pool:
+                                break
+                        # 加入负例列表
+                        batch_neg.append((head_neg, tail_neg, relation))
                 # 将生产的负例和正例一起放入 out_queue中
                 out_queue.put((batch_pos, batch_neg))
 

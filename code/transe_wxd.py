@@ -19,8 +19,8 @@ class TransEDemo:
         self.args = args
         self.batch_size = 100
         self.learning_rate = 1
-        self.use_gpu = False
-        if not torch.cuda.is_available():
+        self.use_gpu = True
+        if not (torch.cuda.is_available() and self.use_gpu):
             self.use_gpu = False
         self.model = TransE(kg.n_entity, kg.n_relation, dim=200)
 
@@ -70,7 +70,7 @@ class TransEDemo:
             neg_t = self.to_var([x[1] for x in batch_neg])
             #
             p_score, n_score = self.model(pos_h, pos_r, pos_t, neg_h, neg_r, neg_t)
-            batch_loss = self.criterion(p_score, n_score)
+            batch_loss = self.criterion(p_score, n_score, len(batch_pos))
             #
             self.optimizer.zero_grad()
             batch_loss.backward()
@@ -305,16 +305,15 @@ if __name__ == '__main__':
     kg = KnowledgeGraph('../data/FB15k')
     # transe = TransE(kg.n_entity, kg.n_relation, dim =200)
     demo = TransEDemo(kg, args)
-    # training_range = tqdm(range(1000))  # 进度条
-    # for epoch in training_range:
-    #     start = time.time()
-    #     epoch_loss = demo.launch_training(epoch+1)
-    #     training_range.set_description('Epoch {}, epoch loss: {:.4f}, cost time: {:.4f}s'.format(epoch, epoch_loss,
-    #                                                                                     time.time() - start))
-    #
+    training_range = tqdm(range(1000))  # 进度条
+    for epoch in training_range:
+        start = time.time()
+        epoch_loss = demo.launch_training(epoch+1)
+        #training_range.set_description('Epoch {}, epoch loss: {:.4f}, cost time: {:.4f}s'.format(epoch, epoch_loss,
+        print('Epoch {}, epoch loss: {:.4f}, cost time: {:.4f}s'.format(epoch, epoch_loss, time.time() - start))
     demo.model.save_checkpoint('checkpoint/model_params.pkl')
-
     demo.model.load_checkpoint('checkpoint/model_params.pkl')
-    # demo.model = demo.model.cuda()
+
+    demo.model = demo.model.cpu()
     demo.launch_evaluation()
 
