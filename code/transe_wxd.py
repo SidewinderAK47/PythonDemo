@@ -17,7 +17,7 @@ class TransEDemo:
         self.n_rank_calculator = 4
         self.kg = kg
         self.args = args
-        self.batch_size = 100
+        self.batch_size = 125
         self.learning_rate = 1
         self.use_gpu = True
         if not (torch.cuda.is_available() and self.use_gpu):
