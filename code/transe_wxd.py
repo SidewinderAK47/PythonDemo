@@ -84,19 +84,23 @@ class TransEDemo:
         start = time.time()
         eval_result_queue = mp.JoinableQueue()   # 使用了 JoinableQueue
         rank_result_queue = mp.Queue()
+        # 先开启消费者进程，消耗：已计算分数 但是待计算每个三元组
         for _ in range(self.n_rank_calculator):
-            mp.Process(target=self.calculate_rank, kwargs={'in_queue': eval_result_queue,
-                                                           'out_queue': rank_result_queue}).start()
+            mp.Process(target=self.test, kwargs={'in_queue': eval_result_queue, 'out_queue': rank_result_queue}).start()
+
         n_used_eval_triple = 0
-        # 遍历所有的 test 三元组
+        # 遍历所有的 test 三元组  在主进程中 将每个测试三元组，加入待评估的三元组的 进程队列；
         for eval_triple in self.kg.test_triples:
-            # 调用训练
-            idx_head_prediction, idx_tail_prediction = 0, 0
+            # 将每一个测试三元组，替换头成所有可能头实体后计算得分，然后排序返回索引
+            # print("here! i stand!")
+            idx_head_prediction, idx_tail_prediction = self.evaluate(eval_triple)
             # self.session.run(fetches=[self.idx_head_prediction, self.idx_tail_prediction],
             #                                                             feed_dict={self.eval_triple: eval_triple})
+            # 将每一个 测试三元组 与 得分排序后的索引放入 进程队列
             eval_result_queue.put((eval_triple, idx_head_prediction, idx_tail_prediction))
             n_used_eval_triple += 1
-        # 在eval队列中放置n_rank_calculator结束标志；
+
+        # 在eval队列中放置n_rank_calculator 个结束标志；
         for _ in range(self.n_rank_calculator):
             eval_result_queue.put(None)
         print('-----Joining all rank calculator-----')
@@ -232,6 +236,27 @@ class TransEDemo:
         print('-----Finish evaluation-----')
         return (head_hits1_filter + tail_hits1_filter) / 2
 
+    def evaluate(self, eval_triple):
+        head, tail, relation = eval_triple
+
+        # score = self.model.get_score(head, relation, tail)
+        head = self.model.ent_embeddings(eval_triple[0])
+        head = head.repeat(self.kg.n_entity, dim=1)
+        chead = self.model.ent_embeddings.weight.data
+
+        tail = self.model.ent_embeddings(eval_triple[1])
+        tail = tail.repeat(self.kg.n_entity, dim=1)
+        ctail = self.model.ent_embeddings.weight.data
+
+
+        rel = self.model.rel_embeddings(eval_triple[2])
+        rel = rel.repeat(self.kg.n_entity, dim=1)
+
+        _, idx_head_prediction = self.model.get_score(chead, rel, tail).topk(self.kg.n_entity)
+        _, idx_tail_prediction = self.model.get_score(head, rel, ctail).topk(self.kg.n_entity)
+
+        return idx_head_prediction.data.cpu().numpy(), idx_tail_prediction.data.cpu().numpy()
+
     def calculate_rank(self, in_queue, out_queue):
         # 不停遍历从队列中取
         while True:
@@ -267,19 +292,26 @@ class TransEDemo:
                 out_queue.put((head_rank_raw, tail_rank_raw, head_rank_filter, tail_rank_filter))
                 in_queue.task_done()
 
+    def test(self, in_queue, out_queue):
+        print("happy!")
+
 
 if __name__ == '__main__':
     freeze_support()
     args = None
     kg = KnowledgeGraph('../data/FB15k')
+    # transe = TransE(kg.n_entity, kg.n_relation, dim =200)
     demo = TransEDemo(kg, args)
-    training_range = tqdm(range(1000))  # 进度条
-    for epoch in training_range:
-        start = time.time()
-        epoch_loss = demo.launch_training(epoch+1)
-        training_range.set_description('Epoch {}, epoch loss: {:.4f}, cost time: {:.4f}s'.format(epoch, epoch_loss,
-                                                                                        time.time() - start))
-
+    # training_range = tqdm(range(1000))  # 进度条
+    # for epoch in training_range:
+    #     start = time.time()
+    #     epoch_loss = demo.launch_training(epoch+1)
+    #     training_range.set_description('Epoch {}, epoch loss: {:.4f}, cost time: {:.4f}s'.format(epoch, epoch_loss,
+    #                                                                                     time.time() - start))
+    #
     demo.model.save_checkpoint('checkpoint/model_params.pkl')
-    # TransEDemo(KnowledgeGraph('../data/FB15k'), args).launch_training(1000)
-        # .launch_evaluation()
+
+    demo.model.load_checkpoint('checkpoint/model_params.pkl')
+    # demo.model = demo.model.cuda()
+    demo.launch_evaluation()
+
