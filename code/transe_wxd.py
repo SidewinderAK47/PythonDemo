@@ -19,7 +19,7 @@ class TransEDemo:
         self.args = args
         self.batch_size = 100
         self.learning_rate = 1
-        self.use_gpu = True
+        self.use_gpu = False
         if not torch.cuda.is_available():
             self.use_gpu = False
         self.model = TransE(kg.n_entity, kg.n_relation, dim=200)
@@ -90,7 +90,8 @@ class TransEDemo:
 
         n_used_eval_triple = 0
         # 遍历所有的 test 三元组  在主进程中 将每个测试三元组，加入待评估的三元组的 进程队列；
-        for eval_triple in self.kg.test_triples:
+        test_eval_triple = tqdm(self.kg.test_triples)
+        for eval_triple in test_eval_triple:
             # 将每一个测试三元组，替换头成所有可能头实体后计算得分，然后排序返回索引
             # print("here! i stand!")
             idx_head_prediction, idx_tail_prediction = self.evaluate(eval_triple)
@@ -134,7 +135,9 @@ class TransEDemo:
         tail_hits5_filter = 0
         tail_hits10_filter = 0
         # 在这个进程中将队列中计算好的 结果都提取出来;
-        for _ in range(n_used_eval_triple):
+        test_time = tqdm(range(n_used_eval_triple))  # 进度条
+
+        for _ in test_time:
             head_rank_raw, tail_rank_raw, head_rank_filter, tail_rank_filter = rank_result_queue.get()
             head_mr_raw += (head_rank_raw + 1)
             head_mrr_raw += 1 / (head_rank_raw + 1)
@@ -238,17 +241,18 @@ class TransEDemo:
 
     def evaluate(self, eval_triple):
         head, tail, relation = eval_triple
-
+        # print(eval_triple)
         # score = self.model.get_score(head, relation, tail)
-        head = self.model.ent_embeddings(self.to_var(eval_triple[0]))
+        # print(self.model.ent_embeddings.weight.data.size())
+        head = self.model.ent_embeddings(self.to_var([head]))
         head = head.repeat(self.kg.n_entity, 1)
         chead = self.model.ent_embeddings.weight.data
 
-        tail = self.model.ent_embeddings(self.to_var(eval_triple[2]))
+        tail = self.model.ent_embeddings(self.to_var([tail]))
         tail = tail.repeat(self.kg.n_entity, 1)
         ctail = self.model.ent_embeddings.weight.data
 
-        rel = self.model.rel_embeddings(self.to_var(eval_triple[1]))
+        rel = self.model.rel_embeddings(self.to_var([relation]))
         rel = rel.repeat(self.kg.n_entity, 1)
 
         _, idx_head_prediction = self.model.get_score(chead, rel, tail).topk(self.kg.n_entity)
