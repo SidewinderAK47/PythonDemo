@@ -1,3 +1,5 @@
+import os
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -36,6 +38,15 @@ class TransE(nn.Module):
         # 计算完范式之后，-1维没了，变成[[batch_seq]] (1,batch_seq)
         # flatten() 变成一维张量 默认按 最后一维，顺序   [batch_seq]
         return score
+
+    # 加载保存的模型
+    def load_checkpoint(self, path):
+        self.load_state_dict(torch.load(os.path.join(path)))
+        self.eval()
+
+    # 存储模型到硬盘
+    def save_checkpoint(self, path):
+        torch.save(self.state_dict(), os.path.join(path))
 
 
 class MarginLoss(nn.Module):

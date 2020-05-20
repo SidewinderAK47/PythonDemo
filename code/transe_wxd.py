@@ -29,7 +29,7 @@ class TransEDemo:
             self.model = self.model.cuda()
             self.criterion = self.criterion.cuda()
         self.optimizer = optim.SGD(self.model.parameters(), lr=self.learning_rate)
-        print("我被创建了！！！")
+        # print("我被创建了！！！")
 
     def to_var(self, x):
         if self.use_gpu:
@@ -46,7 +46,7 @@ class TransEDemo:
                                                                        'out_queue': training_batch_queue}).start()   #"n_triple": None
         # print('-----Start training-----')
 
-        start = time.time()
+        # start = time.time()
         n_batch = 0
         for raw_batch in self.kg.next_raw_batch(self.batch_size):
             # print(len(raw_batch))
@@ -74,10 +74,10 @@ class TransEDemo:
             #
             self.optimizer.zero_grad()
             batch_loss.backward()
-            batch_loss = 0
             epoch_loss += batch_loss
             n_used_triple += len(batch_pos)
-        print('Epoch {}, epoch loss: {:.4f}, cost time: {:.4f}s'.format(epoch, epoch_loss, time.time() - start))
+        # print('Epoch {}, epoch loss: {:.4f}, cost time: {:.4f}s'.format(epoch, epoch_loss.item(), time.time() - start))
+        return epoch_loss.item()
 
     def launch_evaluation(self):
         print('-----Start evaluation-----')
@@ -275,7 +275,11 @@ if __name__ == '__main__':
     demo = TransEDemo(kg, args)
     training_range = tqdm(range(1000))  # 进度条
     for epoch in training_range:
-        demo.launch_training(epoch+1)
+        start = time.time()
+        epoch_loss = demo.launch_training(epoch+1)
+        training_range.set_description('Epoch {}, epoch loss: {:.4f}, cost time: {:.4f}s'.format(epoch, epoch_loss,
+                                                                                        time.time() - start))
 
+    demo.model.save_checkpoint('checkpoint/model_params.pkl')
     # TransEDemo(KnowledgeGraph('../data/FB15k'), args).launch_training(1000)
         # .launch_evaluation()
