@@ -86,7 +86,7 @@ class TransEDemo:
         rank_result_queue = mp.Queue()
         # 先开启消费者进程，消耗：已计算分数 但是待计算每个三元组
         for _ in range(self.n_rank_calculator):
-            mp.Process(target=self.test, kwargs={'in_queue': eval_result_queue, 'out_queue': rank_result_queue}).start()
+            mp.Process(target=self.calculate_rank, kwargs={'in_queue': eval_result_queue, 'out_queue': rank_result_queue}).start()
 
         n_used_eval_triple = 0
         # 遍历所有的 test 三元组  在主进程中 将每个测试三元组，加入待评估的三元组的 进程队列；
@@ -244,12 +244,11 @@ class TransEDemo:
         head = head.repeat(self.kg.n_entity, dim=1)
         chead = self.model.ent_embeddings.weight.data
 
-        tail = self.model.ent_embeddings(self.to_var(eval_triple[1]))
+        tail = self.model.ent_embeddings(self.to_var(eval_triple[2]))
         tail = tail.repeat(self.kg.n_entity, dim=1)
         ctail = self.model.ent_embeddings.weight.data
 
-
-        rel = self.model.rel_embeddings(self.to_var(eval_triple[2]))
+        rel = self.model.rel_embeddings(self.to_var(eval_triple[1]))
         rel = rel.repeat(self.kg.n_entity, dim=1)
 
         _, idx_head_prediction = self.model.get_score(chead, rel, tail).topk(self.kg.n_entity)
