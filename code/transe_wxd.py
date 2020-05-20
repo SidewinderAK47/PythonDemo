@@ -241,15 +241,15 @@ class TransEDemo:
 
         # score = self.model.get_score(head, relation, tail)
         head = self.model.ent_embeddings(self.to_var(eval_triple[0]))
-        head = head.repeat(self.kg.n_entity, dim=1)
+        head = head.repeat(self.kg.n_entity, 1)
         chead = self.model.ent_embeddings.weight.data
 
         tail = self.model.ent_embeddings(self.to_var(eval_triple[2]))
-        tail = tail.repeat(self.kg.n_entity, dim=1)
+        tail = tail.repeat(self.kg.n_entity, 1)
         ctail = self.model.ent_embeddings.weight.data
 
         rel = self.model.rel_embeddings(self.to_var(eval_triple[1]))
-        rel = rel.repeat(self.kg.n_entity, dim=1)
+        rel = rel.repeat(self.kg.n_entity, 1)
 
         _, idx_head_prediction = self.model.get_score(chead, rel, tail).topk(self.kg.n_entity)
         _, idx_tail_prediction = self.model.get_score(head, rel, ctail).topk(self.kg.n_entity)
