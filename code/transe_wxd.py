@@ -34,7 +34,8 @@ class TransEDemo:
             self.criterion = self.criterion.cuda()
         # for tmp in self.model.parameters():
         #     print(tmp)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        self.optimizer = optim.SGD(self.model.parameters(), lr=self.learning_rate)
+        # self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
         # print("我被创建了！！！")
 
     def to_var(self, x):
