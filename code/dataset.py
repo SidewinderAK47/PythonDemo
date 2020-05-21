@@ -105,5 +105,5 @@ class KnowledgeGraph:
                 out_queue.put((batch_pos, batch_neg))
 
 
-KnowledgeGraph('../data/FB15k')
+
 

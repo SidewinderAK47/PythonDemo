@@ -71,9 +71,21 @@ class MarginLoss(nn.Module):
         p_score = p_score.view(-1, batch_size).permute(1, 0)
         n_score = n_score.view(-1, batch_size).permute(1, 0)
         # 返回25个负例，与正例里面的最远
+        # return -(nn.LogSigmoid(p_score).mean() + nn.LogSigmoid(-n_score).mean()) / 2
         return (torch.max(p_score-n_score, -self.margin)).mean() + self.margin  # 0不好写，改成这种写法
         # 写的非常秒啊兄弟，不愧是清华大佬写的 秒啊，兄弟;  判断都不用了  ().mean()返回的是标量
         # torch.max(p_score - n_score, -self.margin) 将比-margin小的（正例和负例差要比margin远的），全部替换成-margin (是正确向量描述规则)
         # mean对所元素取算数平均值；
         # 为什么不先加margin再取均值？呢{理解，margin为常数，mean()外部和内部是一样的}
         # 也就是 小于-margin的被替换成了0，大于-margin 的
+
+
+class SigmoidLoss(nn.Module):
+    def __init__(self):
+        super(SigmoidLoss, self).__init__()
+        self.criterion = nn.LogSigmoid()
+
+    def forward(self, p_score, n_score, batch_size):
+        p_score = p_score.view(-1, batch_size).permute(1, 0)
+        n_score = n_score.view(-1, batch_size).permute(1, 0)
+        return -(self.criterion(p_score).mean() + self.criterion(-n_score).mean()) / 2

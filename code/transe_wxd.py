@@ -8,7 +8,7 @@ from torch import optim
 from tqdm import tqdm
 
 from dataset import KnowledgeGraph
-from transe_model import TransE, MarginLoss
+from transe_model import TransE, MarginLoss, SigmoidLoss
 
 
 class TransEDemo:
@@ -17,14 +17,16 @@ class TransEDemo:
         self.n_rank_calculator = 5
         self.kg = kg
         self.args = args
-        self.batch_size = 100
-        self.learning_rate = 0.01
+        self.batch_size = 2000
+        self.learning_rate = 0.5
+        self.dim = 200
+        self.margin = 1
         self.use_gpu = True
         if not (torch.cuda.is_available() and self.use_gpu):
             self.use_gpu = False
-        self.model = TransE(kg.n_entity, kg.n_relation, dim=50)
+        self.model = TransE(kg.n_entity, kg.n_relation, dim=self.dim)
 
-        self.criterion = MarginLoss(margin=1)
+        self.criterion = MarginLoss(margin=self.margin)  #SigmoidLoss()    # MarginLoss(margin=1)
         if self.use_gpu:
             self.model = self.model.cuda()
             self.criterion = self.criterion.cuda()
@@ -69,10 +71,11 @@ class TransEDemo:
             neg_r = self.to_var([x[2] for x in batch_neg])
             neg_t = self.to_var([x[1] for x in batch_neg])
             #
+            self.optimizer.zero_grad()
             p_score, n_score = self.model(pos_h, pos_r, pos_t, neg_h, neg_r, neg_t)
             batch_loss = self.criterion(p_score, n_score, len(batch_pos))
             #
-            self.optimizer.zero_grad()
+
             batch_loss.backward()
             epoch_loss += batch_loss
             n_used_triple += len(batch_pos)
