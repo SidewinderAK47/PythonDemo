@@ -13,18 +13,18 @@ from transe_model import TransE, MarginLoss
 
 class TransEDemo:
     def __init__(self, kg, args):
-        self.n_generator = 4
-        self.n_rank_calculator = 4
+        self.n_generator = 5
+        self.n_rank_calculator = 5
         self.kg = kg
         self.args = args
-        self.batch_size = 125
-        self.learning_rate = 1
+        self.batch_size = 100
+        self.learning_rate = 0.01
         self.use_gpu = True
         if not (torch.cuda.is_available() and self.use_gpu):
             self.use_gpu = False
-        self.model = TransE(kg.n_entity, kg.n_relation, dim=200)
+        self.model = TransE(kg.n_entity, kg.n_relation, dim=50)
 
-        self.criterion = MarginLoss(margin=5)
+        self.criterion = MarginLoss(margin=1)
         if self.use_gpu:
             self.model = self.model.cuda()
             self.criterion = self.criterion.cuda()
@@ -49,8 +49,8 @@ class TransEDemo:
         # start = time.time()
         n_batch = 0
         for raw_batch in self.kg.next_raw_batch(self.batch_size):
-            # print(len(raw_batch))
-            raw_batch_queue.put(raw_batch)  # 每一个batch_size为100个（h,r,t）放入进程队列
+            # print(raw_batch)
+            raw_batch_queue.put(raw_batch)  # 将batch_size个（h,r,t）放入进程队列中
             n_batch += 1
         for _ in range(self.n_generator):
             raw_batch_queue.put(None)       # 放入n_generator个None让n_generator个进程运行结束;

@@ -24,17 +24,23 @@ class TransE(nn.Module):
         pos_h = F.normalize(pos_h, 2, -1)  # normalize(input, p=2, dim=1, eps=1e-12, out=None) 将头实体，尾实体，关系，标准化 L2范数； 欧式单位向量
         pos_t = F.normalize(pos_t, 2, -1)
         pos_r = F.normalize(pos_r, 2, -1)
+
         neg_h = F.normalize(neg_h, 2, -1)
         neg_t = F.normalize(neg_t, 2, -1)
         neg_r = F.normalize(neg_r, 2, -1)
+
         p_score = self.get_score(pos_h, pos_r, pos_t)
-        n_score = self.get_score(neg_h, neg_t, neg_r)
+        n_score = self.get_score(neg_h, neg_r, neg_t)
         return p_score, n_score
 
     def get_score(self, h, r, t):
-        score = h + r - t
-        score = torch.norm(score, 2, -1).flatten()  # .unsqueeze(-1)    #  .flatten()直接压成一维
-        # torch.norm 对Tensor求范式 torch.norm(input, p=2) → float 对倒数第一维 的第p_norm范式 transE中p_norm为L1范式
+        # print(h)
+        # print(r)
+        # print(t)
+        score = (h + r) - t
+        # print(score)
+        score = torch.norm(score, 1, -1).flatten()  # .unsqueeze(-1)    #  .flatten()直接压成一维
+        # torch.norm 对Tensor求范式 torch.norm(input, p=2) → float 对倒数第一维 的第p_norm = 1范式 transE中p_norm为L1范式
         # 计算完范式之后，-1维没了，变成[[batch_seq]] (1,batch_seq)
         # flatten() 变成一维张量 默认按 最后一维，顺序   [batch_seq]
         return score
@@ -65,7 +71,7 @@ class MarginLoss(nn.Module):
         p_score = p_score.view(-1, batch_size).permute(1, 0)
         n_score = n_score.view(-1, batch_size).permute(1, 0)
         # 返回25个负例，与正例里面的最远
-        return (torch.max(p_score-n_score, -self.margin)).mean() + self.margin # 0不好写，改成这种写法
+        return (torch.max(p_score-n_score, -self.margin)).mean() + self.margin  # 0不好写，改成这种写法
         # 写的非常秒啊兄弟，不愧是清华大佬写的 秒啊，兄弟;  判断都不用了  ().mean()返回的是标量
         # torch.max(p_score - n_score, -self.margin) 将比-margin小的（正例和负例差要比margin远的），全部替换成-margin (是正确向量描述规则)
         # mean对所元素取算数平均值；
