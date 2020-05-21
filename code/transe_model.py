@@ -14,6 +14,8 @@ class TransE(nn.Module):
         nn.init.xavier_uniform_(self.rel_embeddings.weight.data)
 
     def forward(self,  pos_h, pos_r, pos_t, neg_h, neg_r, neg_t):
+        # print('ent', self.ent_embeddings.weight.data)
+        # print('rel', self.rel_embeddings.weight.data)
         # print(neg_h)
         pos_h = self.ent_embeddings(pos_h)
         pos_t = self.ent_embeddings(pos_t)
@@ -39,7 +41,7 @@ class TransE(nn.Module):
         # print(t)
         score = (h + r) - t
         # print(score)
-        score = torch.norm(score, 1, -1).flatten()  # .unsqueeze(-1)    #  .flatten()直接压成一维
+        score = torch.norm(score, 2, -1).flatten()  # .unsqueeze(-1)    #  .flatten()直接压成一维
         # torch.norm 对Tensor求范式 torch.norm(input, p=2) → float 对倒数第一维 的第p_norm = 1范式 transE中p_norm为L1范式
         # 计算完范式之后，-1维没了，变成[[batch_seq]] (1,batch_seq)
         # flatten() 变成一维张量 默认按 最后一维，顺序   [batch_seq]
@@ -59,11 +61,11 @@ class MarginLoss(nn.Module):
     def __init__(self, margin):
         super(MarginLoss, self).__init__()
         self.margin = nn.Parameter(torch.Tensor([margin]))  # 固定Margin参数
-        self.margin.requires_grad = False
+        self.margin.requires_grad = True
 
     # 损失函数的输入
     def forward(self, p_score, n_score, batch_size):
-        #
+        # print(self.margin)
         # n_score=n_score.reshape([n_score.shape[0]//25,25])
         # p_score=p_score.unsqueeze(dim=-1)
         # res=p_score - n_score
@@ -71,7 +73,7 @@ class MarginLoss(nn.Module):
         p_score = p_score.view(-1, batch_size).permute(1, 0)
         n_score = n_score.view(-1, batch_size).permute(1, 0)
         # 返回25个负例，与正例里面的最远
-        # return -(nn.LogSigmoid(p_score).mean() + nn.LogSigmoid(-n_score).mean()) / 2
+        # 针对25次对batch个数据获取的负例，计算
         return (torch.max(p_score-n_score, -self.margin)).mean() + self.margin  # 0不好写，改成这种写法
         # 写的非常秒啊兄弟，不愧是清华大佬写的 秒啊，兄弟;  判断都不用了  ().mean()返回的是标量
         # torch.max(p_score - n_score, -self.margin) 将比-margin小的（正例和负例差要比margin远的），全部替换成-margin (是正确向量描述规则)

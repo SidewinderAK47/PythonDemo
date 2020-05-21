@@ -17,10 +17,12 @@ class TransEDemo:
         self.n_rank_calculator = 5
         self.kg = kg
         self.args = args
-        self.batch_size = 2000
-        self.learning_rate = 0.5
+
+        self.batch_size = 100
+        self.learning_rate = 1
         self.dim = 200
-        self.margin = 1
+        self.margin = 5
+
         self.use_gpu = True
         if not (torch.cuda.is_available() and self.use_gpu):
             self.use_gpu = False
@@ -30,7 +32,9 @@ class TransEDemo:
         if self.use_gpu:
             self.model = self.model.cuda()
             self.criterion = self.criterion.cuda()
-        self.optimizer = optim.SGD(self.model.parameters(), lr=self.learning_rate)
+        # for tmp in self.model.parameters():
+        #     print(tmp)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
         # print("我被创建了！！！")
 
     def to_var(self, x):
@@ -72,11 +76,14 @@ class TransEDemo:
             neg_t = self.to_var([x[1] for x in batch_neg])
             #
             self.optimizer.zero_grad()
+
             p_score, n_score = self.model(pos_h, pos_r, pos_t, neg_h, neg_r, neg_t)
             batch_loss = self.criterion(p_score, n_score, len(batch_pos))
             #
 
             batch_loss.backward()
+
+            self.optimizer.step()
             epoch_loss += batch_loss
             n_used_triple += len(batch_pos)
         # print('Epoch {}, epoch loss: {:.4f}, cost time: {:.4f}s'.format(epoch, epoch_loss.item(), time.time() - start))

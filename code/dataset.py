@@ -18,12 +18,20 @@ class KnowledgeGraph:
         self.n_training_triple = 0
         self.n_validation_triple = 0
         self.n_test_triple = 0
+
         '''load dicts and triples'''
         self.load_dicts()
+
+        self.left_num = [0 for i in range(self.n_relation)]
+        self.right_num = [0 for i in range(self.n_relation)]
+
         self.load_triples()
         '''construct pools after loading'''
+
+
         self.training_triple_pool = set(self.training_triples)
         self.golden_triple_pool = set(self.training_triples) | set(self.validation_triples) | set(self.test_triples)
+
 
     def load_dicts(self):
         entity_dict_file = 'entity2id.txt'
@@ -44,6 +52,7 @@ class KnowledgeGraph:
         training_file = 'train.txt'
         validation_file = 'valid.txt'
         test_file = 'test.txt'
+        lr_e_num_file = 'left_right_entity_num.txt'
         # print('-----Loading training triples-----')
         training_df = pd.read_table(os.path.join(self.data_dir, training_file), header=None)
         self.training_triples = list(zip([self.entity_dict[h] for h in training_df[0]],
@@ -65,6 +74,16 @@ class KnowledgeGraph:
                                      [self.relation_dict[r] for r in test_df[2]]))
         self.n_test_triple = len(self.test_triples)
         # print('#test triple: {}'.format(self.n_test_triple))
+        lr_e_num_df = pd.read_table(os.path.join(self.data_dir, lr_e_num_file), header=None)
+        for tup in zip(lr_e_num_df[0], lr_e_num_df[1], lr_e_num_df[2], lr_e_num_df[3], lr_e_num_df[4]):
+            self.left_num[tup[0]] = tup[1]/tup[2]
+            self.right_num[tup[0]] = tup[3]/tup[4]
+            # print(self.left_num[tup[0]], self.right_num[tup[0]])
+        # with open(os.path.join(self.data_dir, lr_e_num),'r') as f:
+
+
+
+
 
     # 数据生成器
     def next_raw_batch(self, batch_size):
@@ -77,6 +96,7 @@ class KnowledgeGraph:
 
     def generate_training_batch(self, in_queue, out_queue):
         # in_queue中有元素就会继续运行
+        prob = 500
         while True:
             # 从队列中获取 raw_batch，如果队列中没有元素则进程会一直被阻塞;
             raw_batch = in_queue.get()
@@ -87,11 +107,14 @@ class KnowledgeGraph:
                 batch_pos = raw_batch
                 batch_neg = []
                 # 二项分布，伯努利采样；n =1 为采样次数，p=0.5 概率为0.5
-                corrupt_head_prob = np.random.binomial(1, 0.5)
+                # corrupt_head_prob = np.random.binomial(1, self.right_num[]/(self.left_num+self.right_num))
                 for _ in range(25):
                     for head, tail, relation in batch_pos:
                         head_neg = head
                         tail_neg = tail
+                        # 二项分布，伯努利采样；n =1 为采样次数，p=0.5 概率为0.5
+                        corrupt_head_prob = np.random.binomial(1, self.left_num[relation] /
+                                                               (self.left_num[relation] + self.right_num[relation]))
                         while True:
                             if corrupt_head_prob:
                                 head_neg = random.choice(self.entities)
